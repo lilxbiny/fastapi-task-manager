@@ -1,192 +1,225 @@
+Markdown
+
 # Task Management API
 
-RESTful API для управления задачами пользователей на FastAPI + PostgreSQL с JWT-аутентификацией.
+A robust, scalable RESTful API for managing user tasks built with FastAPI, PostgreSQL, and JWT Authentication.
 
-## Технологический стек
+---
 
-- Python 3.11+, FastAPI, SQLAlchemy 2.0, Alembic
-- PostgreSQL 16
-- JWT (python-jose) + bcrypt (passlib)
-- Pydantic v2
-- Docker / Docker Compose
-- pytest + httpx
+## Tech Stack
 
-## Структура проекта
+* **Language:** Python 3.11+
+* **Framework:** FastAPI
+* **ORM:** SQLAlchemy 2.0+
+* **Database Migrations:** Alembic
+* **Database:** PostgreSQL 16
+* **Authentication:** JWT (`python-jose`) + `passlib` (bcrypt)
+* **Data Validation:** Pydantic v2
+* **ASGI Server:** Uvicorn
+* **Containerization:** Docker & Docker Compose
+* **Testing:** `pytest` + `httpx`
 
-```
+---
+
+## Project Structure
+
+```text
 fastapi-task-manager/
 ├── app/
-│   ├── main.py            # точка входа FastAPI
-│   ├── config.py          # настройки из переменных окружения
-│   ├── database.py        # SQLAlchemy engine/session
-│   ├── models/             # ORM-модели (User, Task)
-│   ├── schemas/            # Pydantic-схемы
-│   ├── api/                 # роутеры (auth, tasks)
-│   ├── core/                # security (JWT, хеширование), GUID-тип
-│   └── services/            # бизнес-логика
-├── alembic/                 # миграции БД
-├── tests/                   # pytest-тесты (auth, tasks)
+│   ├── main.py            # FastAPI entrypoint
+│   ├── config.py          # Environment settings
+│   ├── database.py        # SQLAlchemy engine and session setup
+│   ├── models/            # ORM models (User, Task)
+│   ├── schemas/           # Pydantic schemas
+│   ├── api/               # API routers (auth, tasks)
+│   ├── core/              # Security (JWT, hashing), custom types
+│   └── services/          # Business logic
+├── alembic/               # Database migrations
+├── tests/                 # pytest test suite
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 ├── .env.example
 └── README.md
-```
 
-## Быстрый запуск (Docker)
+Quick Start (Docker)
 
-1. Скопируйте файл окружения и при желании отредактируйте значения:
+    Copy the environment configuration file:
+    Bash
 
-   ```bash
-   cp .env.example .env
-   ```
+    cp .env.example .env
 
-2. Поднимите проект одной командой:
+    Run the application using Docker Compose:
+    Bash
 
-   ```bash
-   docker-compose up --build
-   ```
+    docker compose up --build
 
-   API дождётся готовности PostgreSQL (retry-логика в `app/main.py`) и создаст таблицы автоматически при первом запуске.
+The API includes retry logic to wait for PostgreSQL to become healthy before starting. Tables are created automatically on the first launch.
 
-3. API будет доступен на `http://localhost:8000`, интерактивная документация — на `http://localhost:8000/docs`.
+    API Base URL: http://localhost:8000
 
-Для остановки: `docker-compose down` (данные PostgreSQL сохраняются в volume `postgres_data`; чтобы стереть их — `docker-compose down -v`).
+    Interactive API Docs (Swagger UI): http://localhost:8000/docs
 
-## Применение миграций Alembic (опционально)
+To stop the services:
+Bash
 
-В `app/main.py` для удобства разработки таблицы создаются автоматически через `Base.metadata.create_all()`. Для продакшн-развёртывания рекомендуется использовать явные миграции:
+docker compose down
 
-```bash
-docker-compose exec api alembic upgrade head
-```
+(To completely remove stored database data, run docker compose down -v)
+Database Migrations (Alembic)
 
-Создать новую миграцию после изменения моделей:
+By default, database tables are auto-created on application startup for development convenience. For production environments, apply migrations manually:
+Bash
 
-```bash
-docker-compose exec api alembic revision --autogenerate -m "описание изменений"
-```
+docker compose exec api alembic upgrade head
 
-## Локальный запуск без Docker
+To generate a new migration after modifying models:
+Bash
 
-```bash
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env             # укажите локальный DATABASE_URL, если PostgreSQL не в докере
-uvicorn app.main:app --reload
-```
+docker compose exec api alembic revision --autogenerate -m "migration description"
 
-## Тесты
+Local Development (Without Docker)
 
-Тесты используют in-memory SQLite и не требуют поднятой PostgreSQL:
+    Create and activate a virtual environment:
+    Bash
 
-```bash
-pip install -r requirements.txt
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+    Install dependencies:
+    Bash
+
+    pip install -r requirements.txt
+
+    Configure environment variables:
+    Bash
+
+    cp .env.example .env
+
+    (Ensure your local PostgreSQL credentials in .env are correctly set)
+
+    Start the application:
+    Bash
+
+    uvicorn app.main:app --reload
+
+Testing
+
+The test suite uses an in-memory SQLite database and does not require a running PostgreSQL instance.
+Bash
+
 pytest -v
-```
 
-Покрытие:
-- регистрация пользователя (включая дубликат email)
-- логин (успешный и с неверным паролем)
-- создание задачи
-- получение списка задач (пагинация, фильтр по статусу)
-- полное (`PUT`) и частичное (`PATCH`) обновление задачи
-- удаление задачи
-- попытка доступа к чужой задаче → `404`
-- доступ к `/tasks` без токена → `401`
+Test Coverage Includes:
 
-## Примеры запросов
+    User registration (including duplicate email validation)
 
-### Регистрация
+    User login (valid credentials and invalid password checks)
 
-```bash
+    Task creation
+
+    Task listing (pagination and status filtering)
+
+    Full (PUT) and partial (PATCH) task updates
+
+    Task deletion
+
+    Isolation checks (accessing another user's task returns 404)
+
+    Unauthorized requests check (401)
+
+API Examples
+1. User Registration
+Bash
+
 curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email": "user@example.com", "password": "supersecret1"}'
-```
 
-### Логин (OAuth2 Password Flow → JWT)
+2. User Login (Obtain JWT Token)
+Bash
 
-```bash
 curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=user@example.com&password=supersecret1"
-```
 
-Ответ:
+Response:
+JSON
 
-```json
-{ "access_token": "eyJhbGciOi...", "token_type": "bearer" }
-```
+{
+  "access_token": "eyJhbGciOi...",
+  "token_type": "bearer"
+}
 
-Сохраните токен в переменную для удобства:
+Save your token to an environment variable for convenience:
+Bash
 
-```bash
 export TOKEN="eyJhbGciOi..."
-```
 
-### Создание задачи
+3. Create a Task
+Bash
 
-```bash
 curl -X POST http://localhost:8000/tasks/ \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Написать API", "description": "Реализовать CRUD", "status": "todo", "priority": "high"}'
-```
+  -d '{"title": "Build API", "description": "Implement CRUD", "status": "todo", "priority": "high"}'
 
-### Список задач (пагинация + фильтр)
+4. Get Task List (With Pagination & Status Filter)
+Bash
 
-```bash
 curl "http://localhost:8000/tasks/?skip=0&limit=10&status=todo" \
   -H "Authorization: Bearer $TOKEN"
-```
 
-### Получить задачу по ID
+5. Get Task by ID
+Bash
 
-```bash
 curl http://localhost:8000/tasks/<task_id> \
   -H "Authorization: Bearer $TOKEN"
-```
 
-### Полное обновление (PUT)
+6. Full Task Update (PUT)
+Bash
 
-```bash
 curl -X PUT http://localhost:8000/tasks/<task_id> \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Новое название", "description": null, "status": "in_progress", "priority": "medium"}'
-```
+  -d '{"title": "Updated Title", "description": null, "status": "in_progress", "priority": "medium"}'
 
-### Частичное обновление (PATCH)
+7. Partial Task Update (PATCH)
+Bash
 
-```bash
 curl -X PATCH http://localhost:8000/tasks/<task_id> \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"status": "done"}'
-```
 
-### Удаление задачи
+8. Delete Task
+Bash
 
-```bash
 curl -X DELETE http://localhost:8000/tasks/<task_id> \
   -H "Authorization: Bearer $TOKEN"
-```
 
-## Безопасность
+Security Features
 
-- Все эндпоинты `/tasks/*` защищены Bearer-токеном (OAuth2 Password Flow + JWT).
-- Пароли хранятся только в виде bcrypt-хеша.
-- При обращении к задаче по ID всегда проверяется `task.owner_id == current_user.id`; чужая задача возвращает `404` (чтобы не раскрывать факт её существования).
-- Секретный ключ и параметры БД читаются из переменных окружения (`.env`), файл `.env` не должен попадать в репозиторий (см. `.gitignore`).
-- Время жизни access-токена — 30 минут по умолчанию, настраивается через `ACCESS_TOKEN_EXPIRE_MINUTES`.
+    Protected Endpoints: All /tasks/* routes require a valid Bearer token (OAuth2 Password Flow + JWT).
 
-## Дальнейшие возможные улучшения (вне текущего scope)
+    Password Hashing: Passwords are stored securely using bcrypt.
 
-- Refresh-токены
-- Роли пользователей (admin / user)
-- Прикрепление файлов к задачам
-- Уведомления
-- Полнотекстовый поиск
-- Rate limiting
+    Resource Isolation: Access control checks ensure task.owner_id == current_user.id. Accessing a non-owned task returns a 404 Not Found status to avoid leaking existence of private resources.
+
+    Environment Variables: Secret keys and database configurations are managed via .env (excluded from git tracking).
+
+    Token Expiration: Access tokens expire after 30 minutes by default (configurable via ACCESS_TOKEN_EXPIRE_MINUTES).
+
+Future Improvements
+
+    Refresh token support
+
+    User roles & authorization tiers (e.g., admin, user)
+
+    File attachments for tasks
+
+    Email or push notifications
+
+    Full-text search
+
+    Rate limiting
